@@ -1,7 +1,7 @@
+use rust_decimal::Decimal;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::error::Error;
-use rust_decimal::Decimal;
 
 /// A structure represening a single user account.
 #[derive(Default)]
@@ -26,8 +26,6 @@ pub struct AccountDisplay {
     total: Decimal,
     locked: bool,
 }
-
-
 
 impl Account {
     /// Create a new account for the specified user.
@@ -174,7 +172,7 @@ mod tests {
         assert_eq!(acc.held, dec!(0.0));
         assert_eq!(acc.total_balance(), dec!(1.8));
 
-        // Further transactions fail. 
+        // Further transactions fail.
         assert!(acc.deposit(dec!(1.0)).is_err());
         assert!(acc.withdraw(dec!(1.0)).is_err());
         assert!(acc.dispute(66, dec!(1.0)).is_err());

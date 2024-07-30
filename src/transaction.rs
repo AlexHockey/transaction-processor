@@ -1,7 +1,7 @@
 use csv::{ReaderBuilder, Trim};
+use rust_decimal::Decimal;
 use serde::Deserialize;
 use std::error::Error;
-use rust_decimal::Decimal;
 
 /// The representation of a record in the transaction log.
 /// Note that this is private to the module and is just used for deserailization.
@@ -71,7 +71,10 @@ pub fn iter_over_file(
     Ok(iter_over_reader(std::fs::File::open(file_path)?))
 }
 
-fn iter_over_reader<R>(reader: R) -> impl Iterator<Item = Transaction> where R: std::io::Read {
+fn iter_over_reader<R>(reader: R) -> impl Iterator<Item = Transaction>
+where
+    R: std::io::Read,
+{
     // Build a reader.
     // - The CSV has a header we need to strip.
     // - The CSV has variable numbers of columns so we need `flexible` to be set.
@@ -84,8 +87,7 @@ fn iter_over_reader<R>(reader: R) -> impl Iterator<Item = Transaction> where R: 
 
     // Deserailize, skipping any errors.
     // TODO: Add logging when encountering errors.
-    rdr
-        .into_deserialize()
+    rdr.into_deserialize()
         .filter_map(|elem| elem.ok())
         .filter_map(|rec: Record| rec.try_into().ok())
 }
@@ -111,20 +113,20 @@ chargeback, 1, 1
         assert_eq!(tx.id, 1);
         assert_eq!(tx.client, 1);
         match tx.op {
-            Operation::Deposit(val) => { 
+            Operation::Deposit(val) => {
                 assert_eq!(val, dec!(2.0))
             }
-            _ => panic!()
+            _ => panic!(),
         };
 
         let tx = it.next().unwrap();
         assert_eq!(tx.id, 2);
         assert_eq!(tx.client, 1);
         match tx.op {
-            Operation::Withdrawal(val) => { 
+            Operation::Withdrawal(val) => {
                 assert_eq!(val, dec!(1.0))
             }
-            _ => panic!()
+            _ => panic!(),
         };
 
         let tx = it.next().unwrap();
@@ -188,12 +190,11 @@ withdrawal, 1, 1
         assert_eq!(tx.id, 1);
         assert_eq!(tx.client, 1);
         match tx.op {
-            Operation::Withdrawal(val) => { 
+            Operation::Withdrawal(val) => {
                 assert_eq!(val, dec!(1.0))
             }
-            _ => panic!()
+            _ => panic!(),
         };
-
 
         assert!(it.next().is_none());
     }

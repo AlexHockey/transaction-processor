@@ -6,9 +6,9 @@ use transaction::{iter_over_file, Operation, Transaction};
 
 use clap::Parser;
 use csv::Writer;
+use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::error::Error;
-use rust_decimal::Decimal;
 
 /// Program to process a transaction log stored in a CSV file.
 ///
