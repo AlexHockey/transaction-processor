@@ -1,8 +1,8 @@
-mod transaction;
 mod account;
+mod transaction;
 
-use transaction::{iter_over_file, Record};
 use account::Account;
+use transaction::{iter_over_file, Operation, Transaction};
 
 use clap::Parser;
 use csv::Writer;
@@ -24,18 +24,15 @@ struct Args {
 type AccountDb = HashMap<u16, Account>;
 
 /// Process a single transaction record. Returns whether the operation succeeded or not.
-fn handle_record(record: &Record, db: &mut AccountDb) -> Result<(), Box<dyn Error>> {
-    let account = db
-        .entry(record.client)
-        .or_insert(Account::new(record.client));
-    let amount = record.amount.ok_or("No amount value present");
+fn handle_record(tx: &Transaction, db: &mut AccountDb) -> Result<(), Box<dyn Error>> {
+    let account = db.entry(tx.client).or_insert(Account::new(tx.client));
 
-    match record._type.as_str() {
-        "deposit" => {
-            account.deposit(amount?);
+    match tx.op {
+        Operation::Deposit(amount) => {
+            account.deposit(amount);
             Ok(())
         }
-        "withdrawal" => account.withdraw(amount?),
+        Operation::Withdrawal(amount) => account.withdraw(amount),
         _ => Ok(()),
     }
 }
@@ -54,9 +51,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut account_db: AccountDb = HashMap::new();
 
-    for record in iter_over_file(args.tx_log.as_str())? {
+    for tx in iter_over_file(args.tx_log.as_str())? {
         // If this fails we want to just skip over the record, ignoring the result.
-        let _ = handle_record(&record, &mut account_db);
+        let _ = handle_record(&tx, &mut account_db);
     }
 
     display_accounts(&account_db)?;

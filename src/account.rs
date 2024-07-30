@@ -27,7 +27,7 @@ impl Account {
     /// Create a new account for the specified user.
     pub fn new(client: u16) -> Self {
         Self {
-            client: client,
+            client,
             ..Default::default()
         }
     }
