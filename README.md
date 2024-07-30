@@ -13,6 +13,11 @@ cargo run -- path/to/file.csv
 ```
 The specified file should be a csv file formatted according to the format in the problem statement.
 
+Run the tests
+```
+cargo test
+```
+
 # Design
 ## Modules
 The code is split across 3 modules:
