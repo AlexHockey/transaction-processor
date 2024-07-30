@@ -8,6 +8,7 @@ use clap::Parser;
 use csv::Writer;
 use std::collections::HashMap;
 use std::error::Error;
+use rust_decimal::Decimal;
 
 /// Program to process a transaction log stored in a CSV file.
 ///
@@ -24,7 +25,7 @@ struct Args {
 type AccountDb = HashMap<u16, Account>;
 
 // Store deposits in a "database" implemented as a hashmap of tx ID -> amount.
-type DepositDb = HashMap<u32, f64>;
+type DepositDb = HashMap<u32, Decimal>;
 
 /// Process a single transaction record. Returns whether the operation succeeded or not.
 fn handle_record(

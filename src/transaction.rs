@@ -1,6 +1,7 @@
 use csv::{ReaderBuilder, Trim};
 use serde::Deserialize;
 use std::error::Error;
+use rust_decimal::Decimal;
 
 /// The representation of a record in the transaction log.
 /// Note that this is private to the module and is just used for deserailization.
@@ -15,7 +16,7 @@ struct Record {
 
     /// This field may or may not be present depending on the transaction type
     /// (present for deposit or withdrawal, otherwise absent).
-    amount: Option<f64>,
+    amount: Option<Decimal>,
 }
 
 /// Struct representing a single transaction. All transactions have a id and reference a client.
@@ -30,8 +31,8 @@ pub struct Transaction {
 /// The different types of operations that transactions can represent, plus any associated data.
 #[derive(Debug)]
 pub enum Operation {
-    Deposit(f64),
-    Withdrawal(f64),
+    Deposit(Decimal),
+    Withdrawal(Decimal),
     Dispute,
     Resolve,
     Chargeback,
@@ -92,6 +93,7 @@ fn iter_over_reader<R>(reader: R) -> impl Iterator<Item = Transaction> where R: 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rust_decimal_macros::dec;
 
     #[test]
     fn test_mainline_parsing() {
@@ -108,12 +110,22 @@ chargeback, 1, 1
         let tx = it.next().unwrap();
         assert_eq!(tx.id, 1);
         assert_eq!(tx.client, 1);
-        assert!(matches!(tx.op, Operation::Deposit(2.0)));
+        match tx.op {
+            Operation::Deposit(val) => { 
+                assert_eq!(val, dec!(2.0))
+            }
+            _ => panic!()
+        };
 
         let tx = it.next().unwrap();
         assert_eq!(tx.id, 2);
         assert_eq!(tx.client, 1);
-        assert!(matches!(tx.op, Operation::Withdrawal(1.0)));
+        match tx.op {
+            Operation::Withdrawal(val) => { 
+                assert_eq!(val, dec!(1.0))
+            }
+            _ => panic!()
+        };
 
         let tx = it.next().unwrap();
         assert_eq!(tx.id, 1);
@@ -175,7 +187,13 @@ withdrawal, 1, 1
         let tx = it.next().unwrap();
         assert_eq!(tx.id, 1);
         assert_eq!(tx.client, 1);
-        assert!(matches!(tx.op, Operation::Withdrawal(1.0)));
+        match tx.op {
+            Operation::Withdrawal(val) => { 
+                assert_eq!(val, dec!(1.0))
+            }
+            _ => panic!()
+        };
+
 
         assert!(it.next().is_none());
     }

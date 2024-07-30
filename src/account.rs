@@ -1,16 +1,17 @@
 use serde::Serialize;
 use std::collections::HashMap;
 use std::error::Error;
+use rust_decimal::Decimal;
 
 /// A structure represening a single user account.
 #[derive(Default)]
 pub struct Account {
     client: u16,
-    available: f64,
-    held: f64,
+    available: Decimal,
+    held: Decimal,
     locked: bool,
 
-    disputes: HashMap<u32, f64>,
+    disputes: HashMap<u32, Decimal>,
 }
 
 /// A structure containing the details for how to display an account. This is a separate
@@ -20,11 +21,13 @@ pub struct Account {
 #[derive(Debug, Serialize)]
 pub struct AccountDisplay {
     client: u16,
-    available: f64,
-    held: f64,
-    total: f64,
+    available: Decimal,
+    held: Decimal,
+    total: Decimal,
     locked: bool,
 }
+
+
 
 impl Account {
     /// Create a new account for the specified user.
@@ -36,19 +39,19 @@ impl Account {
     }
 
     /// Calculate the user's total balance.
-    pub fn total_balance(&self) -> f64 {
+    pub fn total_balance(&self) -> Decimal {
         self.available + self.held
     }
 
     /// Deposit funds into the user's account.
-    pub fn deposit(&mut self, amount: f64) -> Result<(), Box<dyn Error>> {
+    pub fn deposit(&mut self, amount: Decimal) -> Result<(), Box<dyn Error>> {
         self.fail_if_locked()?;
         self.available += amount;
         Ok(())
     }
 
     /// Withdraw funds from the account, returning an error if there are insufficient funds.
-    pub fn withdraw(&mut self, amount: f64) -> Result<(), Box<dyn Error>> {
+    pub fn withdraw(&mut self, amount: Decimal) -> Result<(), Box<dyn Error>> {
         self.fail_if_locked()?;
 
         if self.available >= amount {
@@ -59,7 +62,7 @@ impl Account {
         }
     }
 
-    pub fn dispute(&mut self, tx_id: u32, amount: f64) -> Result<(), Box<dyn Error>> {
+    pub fn dispute(&mut self, tx_id: u32, amount: Decimal) -> Result<(), Box<dyn Error>> {
         self.fail_if_locked()?;
 
         if self.disputes.contains_key(&tx_id) {
@@ -126,54 +129,55 @@ impl Account {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rust_decimal_macros::dec;
 
     #[test]
     fn test_deposit_withdrawal() {
         let mut acc = Account::new(1);
-        assert!(acc.deposit(1.0).is_ok());
-        assert!(acc.deposit(2.0).is_ok());
-        assert!(acc.withdraw(1.2).is_ok());
+        assert!(acc.deposit(dec!(1.0)).is_ok());
+        assert!(acc.deposit(dec!(2.0)).is_ok());
+        assert!(acc.withdraw(dec!(1.2)).is_ok());
 
-        assert_eq!(acc.available, 1.8);
-        assert_eq!(acc.held, 0.0);
-        assert_eq!(acc.total_balance(), 1.8);
+        assert_eq!(acc.available, dec!(1.8));
+        assert_eq!(acc.held, dec!(0.0));
+        assert_eq!(acc.total_balance(), dec!(1.8));
     }
 
     #[test]
     fn test_dispute_resolve() {
         let mut acc = Account::new(1);
 
-        assert!(acc.deposit(1.0).is_ok());
-        assert!(acc.deposit(2.0).is_ok());
-        assert!(acc.dispute(33, 1.2).is_ok());
+        assert!(acc.deposit(dec!(1.0)).is_ok());
+        assert!(acc.deposit(dec!(2.0)).is_ok());
+        assert!(acc.dispute(33, dec!(1.2)).is_ok());
 
-        assert_eq!(acc.available, 1.8);
-        assert_eq!(acc.held, 1.2);
-        assert_eq!(acc.total_balance(), 3.0);
+        assert_eq!(acc.available, dec!(1.8));
+        assert_eq!(acc.held, dec!(1.2));
+        assert_eq!(acc.total_balance(), dec!(3.0));
 
         assert!(acc.resolve(33).is_ok());
-        assert_eq!(acc.available, 3.0);
-        assert_eq!(acc.held, 0.0);
-        assert_eq!(acc.total_balance(), 3.0);
+        assert_eq!(acc.available, dec!(3.0));
+        assert_eq!(acc.held, dec!(0.0));
+        assert_eq!(acc.total_balance(), dec!(3.0));
     }
 
     #[test]
     fn test_dispute_chargeback() {
         let mut acc = Account::new(1);
 
-        assert!(acc.deposit(1.0).is_ok());
-        assert!(acc.deposit(2.0).is_ok());
-        assert!(acc.dispute(33, 1.2).is_ok());
+        assert!(acc.deposit(dec!(1.0)).is_ok());
+        assert!(acc.deposit(dec!(2.0)).is_ok());
+        assert!(acc.dispute(33, dec!(1.2)).is_ok());
         assert!(acc.chargeback(33).is_ok());
 
-        assert_eq!(acc.available, 1.8);
-        assert_eq!(acc.held, 0.0);
-        assert_eq!(acc.total_balance(), 1.8);
+        assert_eq!(acc.available, dec!(1.8));
+        assert_eq!(acc.held, dec!(0.0));
+        assert_eq!(acc.total_balance(), dec!(1.8));
 
         // Further transactions fail. 
-        assert!(acc.deposit(1.0).is_err());
-        assert!(acc.withdraw(1.0).is_err());
-        assert!(acc.dispute(66, 1.0).is_err());
+        assert!(acc.deposit(dec!(1.0)).is_err());
+        assert!(acc.withdraw(dec!(1.0)).is_err());
+        assert!(acc.dispute(66, dec!(1.0)).is_err());
         assert!(acc.resolve(66).is_err());
     }
 
@@ -181,9 +185,9 @@ mod tests {
     fn test_resolve_unrecognized_dispute() {
         let mut acc = Account::new(1);
 
-        assert!(acc.deposit(1.0).is_ok());
-        assert!(acc.deposit(2.0).is_ok());
-        assert!(acc.dispute(33, 1.2).is_ok());
+        assert!(acc.deposit(dec!(1.0)).is_ok());
+        assert!(acc.deposit(dec!(2.0)).is_ok());
+        assert!(acc.dispute(33, dec!(1.2)).is_ok());
         assert!(acc.resolve(36).is_err());
     }
 
@@ -191,25 +195,25 @@ mod tests {
     fn test_multiple_disputes() {
         let mut acc = Account::new(1);
 
-        assert!(acc.deposit(1.0).is_ok());
-        assert!(acc.deposit(2.0).is_ok());
-        assert!(acc.dispute(33, 1.2).is_ok());
-        assert!(acc.dispute(66, 1.0).is_ok());
+        assert!(acc.deposit(dec!(1.0)).is_ok());
+        assert!(acc.deposit(dec!(2.0)).is_ok());
+        assert!(acc.dispute(33, dec!(1.2)).is_ok());
+        assert!(acc.dispute(66, dec!(1.0)).is_ok());
 
-        assert_eq!(acc.available, 0.8);
-        assert_eq!(acc.held, 2.2);
-        assert_eq!(acc.total_balance(), 3.0);
+        assert_eq!(acc.available, dec!(0.8));
+        assert_eq!(acc.held, dec!(2.2));
+        assert_eq!(acc.total_balance(), dec!(3.0));
 
         // Resolve the second dispute
         assert!(acc.resolve(66).is_ok());
-        assert_eq!(acc.available, 1.8);
-        assert_eq!(acc.held, 1.2);
-        assert_eq!(acc.total_balance(), 3.0);
+        assert_eq!(acc.available, dec!(1.8));
+        assert_eq!(acc.held, dec!(1.2));
+        assert_eq!(acc.total_balance(), dec!(3.0));
 
         // Chargeback the first
         assert!(acc.chargeback(33).is_ok());
-        assert_eq!(acc.available, 1.8);
-        assert_eq!(acc.held, 0.0);
-        assert_eq!(acc.total_balance(), 1.8);
+        assert_eq!(acc.available, dec!(1.8));
+        assert_eq!(acc.held, dec!(0.0));
+        assert_eq!(acc.total_balance(), dec!(1.8));
     }
 }
