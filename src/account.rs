@@ -1,6 +1,6 @@
 use serde::Serialize;
-use std::error::Error;
 use std::collections::HashMap;
+use std::error::Error;
 
 /// A structure represening a single user account.
 #[derive(Default)]
@@ -72,7 +72,7 @@ impl Account {
             self.disputes.insert(tx_id, amount);
             Ok(())
         } else {
-            // Unclear what we should do if there aren't enough funds to hold for the dispute. 
+            // Unclear what we should do if there aren't enough funds to hold for the dispute.
             // I'll assume we can just ignore the transation.
             Err("Insufficeint funds".into())
         }
@@ -81,7 +81,10 @@ impl Account {
     pub fn resolve(&mut self, tx_id: u32) -> Result<(), Box<dyn Error>> {
         self.fail_if_locked()?;
 
-        let amount = self.disputes.get(&tx_id).ok_or(format!("could not find dispute with TX ID {}", tx_id))?;
+        let amount = self
+            .disputes
+            .get(&tx_id)
+            .ok_or(format!("could not find dispute with TX ID {}", tx_id))?;
         self.available += amount;
         self.held -= amount;
         Ok(())
@@ -90,7 +93,10 @@ impl Account {
     pub fn chargeback(&mut self, tx_id: u32) -> Result<(), Box<dyn Error>> {
         self.fail_if_locked()?;
 
-        let amount = self.disputes.get(&tx_id).ok_or(format!("could not find dispute with TX ID {}", tx_id))?;
+        let amount = self
+            .disputes
+            .get(&tx_id)
+            .ok_or(format!("could not find dispute with TX ID {}", tx_id))?;
         self.held -= amount;
         self.locked = true;
         Ok(())

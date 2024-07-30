@@ -44,11 +44,13 @@ fn handle_record(
         }
         Operation::Withdrawal(amount) => account.withdraw(amount),
         Operation::Dispute => {
-            let amount = *deposits.get(&tx.id).ok_or(format!("no transaction with ID {}", tx.id))?;
+            let amount = *deposits
+                .get(&tx.id)
+                .ok_or(format!("no transaction with ID {}", tx.id))?;
             account.dispute(tx.id, amount)
         }
         Operation::Resolve => account.resolve(tx.id),
-        Operation::Chargeback => account.chargeback(tx.id)
+        Operation::Chargeback => account.chargeback(tx.id),
     }
 }
 
