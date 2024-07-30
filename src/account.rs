@@ -122,3 +122,94 @@ impl Account {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_deposit_withdrawal() {
+        let mut acc = Account::new(1);
+        assert!(acc.deposit(1.0).is_ok());
+        assert!(acc.deposit(2.0).is_ok());
+        assert!(acc.withdraw(1.2).is_ok());
+
+        assert_eq!(acc.available, 1.8);
+        assert_eq!(acc.held, 0.0);
+        assert_eq!(acc.total_balance(), 1.8);
+    }
+
+    #[test]
+    fn test_dispute_resolve() {
+        let mut acc = Account::new(1);
+
+        assert!(acc.deposit(1.0).is_ok());
+        assert!(acc.deposit(2.0).is_ok());
+        assert!(acc.dispute(33, 1.2).is_ok());
+
+        assert_eq!(acc.available, 1.8);
+        assert_eq!(acc.held, 1.2);
+        assert_eq!(acc.total_balance(), 3.0);
+
+        assert!(acc.resolve(33).is_ok());
+        assert_eq!(acc.available, 3.0);
+        assert_eq!(acc.held, 0.0);
+        assert_eq!(acc.total_balance(), 3.0);
+    }
+
+    #[test]
+    fn test_dispute_chargeback() {
+        let mut acc = Account::new(1);
+
+        assert!(acc.deposit(1.0).is_ok());
+        assert!(acc.deposit(2.0).is_ok());
+        assert!(acc.dispute(33, 1.2).is_ok());
+        assert!(acc.chargeback(33).is_ok());
+
+        assert_eq!(acc.available, 1.8);
+        assert_eq!(acc.held, 0.0);
+        assert_eq!(acc.total_balance(), 1.8);
+
+        // Further transactions fail. 
+        assert!(acc.deposit(1.0).is_err());
+        assert!(acc.withdraw(1.0).is_err());
+        assert!(acc.dispute(66, 1.0).is_err());
+        assert!(acc.resolve(66).is_err());
+    }
+
+    #[test]
+    fn test_resolve_unrecognized_dispute() {
+        let mut acc = Account::new(1);
+
+        assert!(acc.deposit(1.0).is_ok());
+        assert!(acc.deposit(2.0).is_ok());
+        assert!(acc.dispute(33, 1.2).is_ok());
+        assert!(acc.resolve(36).is_err());
+    }
+
+    #[test]
+    fn test_multiple_disputes() {
+        let mut acc = Account::new(1);
+
+        assert!(acc.deposit(1.0).is_ok());
+        assert!(acc.deposit(2.0).is_ok());
+        assert!(acc.dispute(33, 1.2).is_ok());
+        assert!(acc.dispute(66, 1.0).is_ok());
+
+        assert_eq!(acc.available, 0.8);
+        assert_eq!(acc.held, 2.2);
+        assert_eq!(acc.total_balance(), 3.0);
+
+        // Resolve the second dispute
+        assert!(acc.resolve(66).is_ok());
+        assert_eq!(acc.available, 1.8);
+        assert_eq!(acc.held, 1.2);
+        assert_eq!(acc.total_balance(), 3.0);
+
+        // Chargeback the first
+        assert!(acc.chargeback(33).is_ok());
+        assert_eq!(acc.available, 1.8);
+        assert_eq!(acc.held, 0.0);
+        assert_eq!(acc.total_balance(), 1.8);
+    }
+}
