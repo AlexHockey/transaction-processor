@@ -20,20 +20,35 @@ struct Args {
     tx_log: String,
 }
 
-/// We store the accounts in a "database" implemented which is just a hashmap of client ID to Account.
+// We store the accounts in a "database" implemented which is just a hashmap of client ID to Account.
 type AccountDb = HashMap<u16, Account>;
 
+// Store deposits in a "database" implemented as a hashmap of tx ID -> amount.
+type DepositDb = HashMap<u32, f64>;
+
 /// Process a single transaction record. Returns whether the operation succeeded or not.
-fn handle_record(tx: &Transaction, db: &mut AccountDb) -> Result<(), Box<dyn Error>> {
-    let account = db.entry(tx.client).or_insert(Account::new(tx.client));
+fn handle_record(
+    tx: &Transaction,
+    accounts: &mut AccountDb,
+    deposits: &mut DepositDb,
+) -> Result<(), Box<dyn Error>> {
+    let account = accounts.entry(tx.client).or_insert(Account::new(tx.client));
 
     match tx.op {
         Operation::Deposit(amount) => {
-            account.deposit(amount);
-            Ok(())
+            if deposits.contains_key(&tx.id) {
+                return Err(format!("Already have a transaction with ID {}", tx.id).into());
+            }
+            deposits.insert(tx.id, amount);
+            account.deposit(amount)
         }
         Operation::Withdrawal(amount) => account.withdraw(amount),
-        _ => Ok(()),
+        Operation::Dispute => {
+            let amount = *deposits.get(&tx.id).ok_or(format!("no transaction with ID {}", tx.id))?;
+            account.dispute(tx.id, amount)
+        }
+        Operation::Resolve => account.resolve(tx.id),
+        Operation::Chargeback => account.chargeback(tx.id)
     }
 }
 
@@ -49,11 +64,21 @@ fn display_accounts(db: &AccountDb) -> Result<(), Box<dyn Error>> {
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
 
+    // Create a "database" to store the client accounts. In production this would probably be a separate
+    // scalable and reliable database. For this problem just use a hashmap.
     let mut account_db: AccountDb = HashMap::new();
+
+    // Create a "database" to store deposits that might be disputed.
+    // Again, in production this would be a separate DB, but we'll use a hashmap.
+    //
+    // NOTE: It is unclear from the problem statement if withdrawals can also be disputed. Realistically it seems
+    // like they could be. But the description for dispute handling suggests it only covers deposits. I've
+    // assumed we only need to handle desposits.
+    let mut deposit_db: DepositDb = HashMap::new();
 
     for tx in iter_over_file(args.tx_log.as_str())? {
         // If this fails we want to just skip over the record, ignoring the result.
-        let _ = handle_record(&tx, &mut account_db);
+        let _ = handle_record(&tx, &mut account_db, &mut deposit_db);
     }
 
     display_accounts(&account_db)?;
