@@ -5,10 +5,10 @@ use std::error::Error;
 /// A structure represening a single user account.
 #[derive(Default)]
 pub struct Account {
-    pub client: u16,
-    pub available: f64,
-    pub held: f64,
-    pub locked: bool,
+    client: u16,
+    available: f64,
+    held: f64,
+    locked: bool,
 
     disputes: HashMap<u32, f64>,
 }
