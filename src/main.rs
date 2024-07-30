@@ -1,6 +1,11 @@
+mod transaction;
+mod account;
+
+use transaction::{iter_over_file, Record};
+use account::Account;
+
 use clap::Parser;
-use csv::{ReaderBuilder, Trim, Writer};
-use serde::{Deserialize, Serialize};
+use csv::Writer;
 use std::collections::HashMap;
 use std::error::Error;
 
@@ -13,82 +18,6 @@ use std::error::Error;
 struct Args {
     /// Path to the file containing the transaction log
     tx_log: String,
-}
-
-/// The representation of a record in the transaction log.
-#[derive(Debug, Deserialize)]
-struct Record {
-    #[serde(alias = "type")]
-    _type: String,
-    client: u16,
-    tx: u32,
-
-    // This field may or may not be present depending on the transaction type
-    // (present for deposit or withdrawal, otherwise absent).
-    amount: Option<f64>,
-}
-
-/// A structure represening a single user account.
-#[derive(Default)]
-struct Account {
-    client: u16,
-    available: f64,
-    held: f64,
-    locked: bool,
-}
-
-/// A structure containing the details for how to display an account. This is a separate
-/// struct as there are some fields on the main account that we don't want to display (such as
-/// active disputes), and there is some information we want to display that is not directly
-/// stored in the account (e.g. total balance).
-#[derive(Debug, Serialize)]
-struct AccountDisplay {
-    client: u16,
-    available: f64,
-    held: f64,
-    total: f64,
-    locked: bool,
-}
-
-impl Account {
-    /// Create a new account for the specified user.
-    fn new(client: u16) -> Self {
-        Self {
-            client: client,
-            ..Default::default()
-        }
-    }
-
-    /// Calculate the user's total balance.
-    fn total_balance(&self) -> f64 {
-        self.available + self.held
-    }
-
-    /// Deposit funds into the user's account.
-    fn deposit(&mut self, amount: f64) {
-        self.available += amount;
-    }
-
-    /// Withdraw funds from the account, returning an error if there are insufficient funds.
-    fn withdraw(&mut self, amount: f64) -> Result<(), Box<dyn Error>> {
-        if self.available >= amount {
-            self.available -= amount;
-            Ok(())
-        } else {
-            Err("Insufficeint funds".into())
-        }
-    }
-
-    /// Create a display representation for this account.
-    fn to_display(&self) -> AccountDisplay {
-        AccountDisplay {
-            client: self.client,
-            available: self.available,
-            held: self.held,
-            total: self.total_balance(),
-            locked: self.locked,
-        }
-    }
 }
 
 /// We store the accounts in a "database" implemented which is just a hashmap of client ID to Account.
@@ -125,16 +54,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut account_db: AccountDb = HashMap::new();
 
-    let mut rdr = ReaderBuilder::new()
-        .has_headers(true)
-        .flexible(true)
-        .trim(Trim::All)
-        .from_path(args.tx_log)?;
-
-    for result in rdr.deserialize() {
-        // If parsing the transaction log fails there is nothing we can do, so just exit.
-        let record: Record = result?;
-
+    for record in iter_over_file(args.tx_log.as_str())? {
         // If this fails we want to just skip over the record, ignoring the result.
         let _ = handle_record(&record, &mut account_db);
     }
