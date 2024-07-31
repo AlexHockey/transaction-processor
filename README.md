@@ -18,7 +18,18 @@ Run the tests
 cargo test
 ```
 
+# Key Assumptions
+* A client's available balance cannot go negative. Instead the transaction that would cause this should be ignored.
+* Only deposits can be disputed (It is unclear from the problem statement if withdrawals can also be disputed.
+  Realistically it seems like they could be. But the description for dispute handling suggests it only covers deposits).
+
 # Design
+The program maintains two "databases" (implemented as hashmaps), which store client accounts, and transactions that 
+may be disputed. The code iterates over the transaction log one record at a time. For each record it processes the transaction, by finding and updating the relevant account, and if necessary, storing the teransaction for future dispute.
+
+This design uses system resources efficiently. It extends to receiving transactions over a different protocol (e.g
+a stream). It can scale by making the databases external components, and running multiple transaction processors in parallel.
+
 ## Modules
 The code is split across 3 modules:
 * `transaction.rs` contains the code for parsing a transaction log, and structs/enums for handing different transaction types.
@@ -30,10 +41,13 @@ The code is split across 3 modules:
 * `rust_decimal`: For handling floating point operations safely without rounding errors
 * `clap`: For argument parsing and help text (might be overkill)
 
-# Testing
+# Testing / Correctness
+
+The type system is used where practical to ensure correctness. In particular, only validly formed transaction events are passed into the internal business logic. 
+
 The code has primarily been tested in two ways:
 * Via the module-level unit tests.
-* By running sample input files by hand and inspecting the output. See samples in `test-data/`
+* By running sample input files by hand and inspecting the output. See samples in `test-data/`. This includes the sample input and output provided in the problem statment.
 
 # To Do
 * Add logging to the program (especially when errors are created).
